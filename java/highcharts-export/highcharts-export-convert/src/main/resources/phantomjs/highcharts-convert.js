@@ -10,56 +10,31 @@
  * version: 2.0.1
  */
 
-/* global cb, clearInterval, clearTimeout, console, customCode,
-	dataOptions, document, globalOptions, Highcharts, Image, options,
-	phantom, response, require, window */
+/*jslint white: true */
+/*global window, require, phantom, console, $, document, Image, Highcharts, clearTimeout, clearInterval, options, cb, globalOptions, dataOptions, customCode */
+
+
 (function () {
-	'use strict';
+	"use strict";
 
 	var config = {
 			/* define locations of mandatory javascript files.
-			 * Depending on purchased license change the HIGHCHARTS property to
-			 * highcharts.js or highstock.js
+			 * Depending on purchased license change the HIGHCHARTS property to 
+			 * highcharts.js or highstock.js 
 			 */
-
-			files: {
-				highcharts: {
-					HIGHCHARTS: 'highcharts.js',
-					HIGHCHARTS_MORE: 'highcharts-more.js',
-					HIGHCHARTS_DATA: 'data.js',
-					HIGHCHARTS_DRILLDOWN: 'drilldown.js',
-					HIGHCHARTS_FUNNEL: 'funnel.js',
-					HIGHCHARTS_HEATMAP: 'heatmap.js',
-					HIGHCHARTS_TREEMAP: 'treemap.js',
-					HIGHCHARTS_3D: 'highcharts-3d.js',
-					HIGHCHARTS_NODATA: 'no-data-to-display.js',
-					// Uncomment below if you have both Highcharts and Highmaps license
-					// HIGHCHARTS_MAP: 'map.js',
-					HIGHCHARTS_SOLID_GAUGE: 'solid-gauge.js',
-					BROKEN_AXIS: 'broken-axis.js'
-				},
-				highstock: {
-					HIGHCHARTS: 'highstock.js',
-					HIGHCHARTS_MORE: 'highcharts-more.js',
-					HIGHCHARTS_DATA: 'data.js',
-					HIGHCHARTS_DRILLDOWN: 'drilldown.js',
-					HIGHCHARTS_FUNNEL: 'funnel.js',
-					HIGHCHARTS_HEATMAP: 'heatmap.js',
-					HIGHCHARTS_TREEMAP: 'treemap.js',
-					HIGHCHARTS_3D: 'highcharts-3d.js',
-					HIGHCHARTS_NODATA: 'no-data-to-display.js',
-					// Uncomment below if you have both Highstock and Highmaps license
-					// HIGHCHARTS_MAP: 'map.js',
-					HIGHCHARTS_SOLID_GAUGE: 'solid-gauge.js',
-					BROKEN_AXIS: 'broken-axis.js'
-				},
-				highmaps: {
-					HIGHCHARTS: 'highmaps.js',
-					HIGHCHARTS_DATA: 'data.js',
-					HIGHCHARTS_DRILLDOWN: 'drilldown.js',
-					HIGHCHARTS_HEATMAP: 'heatmap.js',
-					HIGHCHARTS_NODATA: 'no-data-to-display.js'
-				}
+			files: { 
+				JQUERY: 'jquery.1.9.1.min.js',
+				HIGHCHARTS: 'highstock.js',
+				/* HIGHCHARTS: 'highcharts.js',*/
+				HIGHCHARTS_MORE: 'highcharts-more.js',
+				HIGHCHARTS_DATA: 'data.js',
+				HIGHCHARTS_DRILLDOWN: 'drilldown.js',
+				HIGHCHARTS_FUNNEL: 'funnel.js',
+				HIGHCHARTS_HEATMAP: 'heatmap.js',
+				HIGHCHARTS_3D: 'highcharts-3d.js',
+				HIGHCHARTS_NODATA: 'no-data-to-display.js',
+				/*HIGHCHARTS_MAP: 'map.js',*/
+				HIGHCHARTS_SOLID_GAUGE: 'solid-gauge.js'
 			},
 			TIMEOUT: 5000 /* 5 seconds timout for loading images */
 		},
@@ -69,8 +44,7 @@
 		args,
 		pick,
 		SVG_DOCTYPE = '<?xml version=\"1.0" standalone=\"no\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">',
-		dpiCorrection = 1.0, // Correction factor for DPI scaling. Use if PDF export does not match page size (issue #4764).
-		// dpiCorrection = 72 / 96, // DPI correction setting for Windows
+		dpiCorrection = 1.4,
 		system = require('system'),
 		fs = require('fs'),
 		serverMode = false;
@@ -79,7 +53,7 @@
 		var args = arguments, i, arg, length = args.length;
 		for (i = 0; i < length; i += 1) {
 			arg = args[i];
-			if (arg !== undefined && arg !== null && arg !== 'null' && arg !== '0') {
+			if (arg !== undefined && arg !== null && arg !== 'null' && arg != '0') {
 				return arg;
 			}
 		}
@@ -124,6 +98,7 @@
 			input,
 			constr,
 			callback,
+			width,
 			output,
 			outType,
 			timer,
@@ -131,26 +106,23 @@
 			convert,
 			exit,
 			interval,
-			counter,
-			imagesLoaded = false;
+            counter,
+            imagesLoaded = false;
 
 		messages.optionsParsed = 'Highcharts.options.parsed';
 		messages.callbackParsed = 'Highcharts.cb.parsed';
-
+		
 		window.optionsParsed = false;
 		window.callbackParsed = false;
-
-		// security measures, for not allowing loading iframes
-		page.navigationLocked = true;
-
+        
 		page.onConsoleMessage = function (msg) {
 			console.log(msg);
-
+            
 			/*
 			 * Ugly hack, but only way to get messages out of the 'page.evaluate()'
 			 * sandbox. If any, please contribute with improvements on this!
 			 */
-
+			
 			/* to check options or callback are properly parsed */
 			if (msg === messages.optionsParsed) {
 				window.optionsParsed = true;
@@ -165,23 +137,6 @@
 			console.log(msg);
 		};
 
-		page.onError = function (msg, trace) {
-			var msgStack = ['ERROR: ' + msg];
-
-			if (trace && trace.length) {
-				msgStack.push('TRACE:');
-				trace.forEach(function (t) {
-					msgStack.push(' -> ' + t.file + ': ' + t.line + (t.function ? ' (in function "' + t.function + '")' : ''));
-				});
-			}
-
-			console.error(msgStack.join('\n'));
-
-			if (exitCallback !== null) {
-				exitCallback(msg);
-			}
-		};
-
 		/* scale and clip the page */
 		scaleAndClipPage = function (svg) {
 			/*	param: svg: The scg configuration object
@@ -192,7 +147,7 @@
 				clipwidth,
 				clipheight;
 
-			if (parseInt(pageWidth, 10) == pageWidth) { // eslint-disable-line eqeqeq
+			if (parseInt(pageWidth, 10) == pageWidth) {
 				zoom = pageWidth / svg.width;
 			}
 
@@ -200,17 +155,7 @@
 			scale has precedence : page.zoomFactor = params.scale  ? zoom * params.scale : zoom;*/
 
 			/* params.width has a higher precedence over scaling, to not break backover compatibility */
-			page.zoomFactor = params.scale && params.width === undefined ? zoom * params.scale : zoom;
-
-			// Set scale on foreignObject body. page.zoomFactor does not work on HTML inside SVG foreignObject on webkit currently.
-			// See Highcharts issue #4648
-			page.evaluate(function (zoom) {
-				var foreignObjectElem = document.getElementsByTagName('foreignObject')[0],
-					bodyElem = foreignObjectElem && foreignObjectElem.getElementsByTagName('body')[0];
-				if (bodyElem) {
-					bodyElem.setAttribute('style', '-webkit-transform: scale(' + zoom + '); -webkit-transform-origin: 0 0 !important');
-				}
-			}, page.zoomFactor);
+			page.zoomFactor = params.scale && params.width == undefined ? zoom * params.scale : zoom;
 
 			clipwidth = svg.width * page.zoomFactor;
 			clipheight = svg.height * page.zoomFactor;
@@ -224,22 +169,21 @@
 				height: clipheight
 			};
 
+			/* for pdf we need a bit more paperspace in some cases for example (w:600,h:400), I don't know why.*/
 			if (outType === 'pdf') {
+				// changed to a multiplication with 1.333 to correct systems dpi setting
+				clipwidth = clipwidth * dpiCorrection;
+				clipheight = clipheight * dpiCorrection;
 				// redefine the viewport
-				page.viewportSize = { width: clipwidth, height: clipheight };
-
-				// simulate zooming to get the right zoomFactor. Using page.zoomFactor doesn't work anymore, see issue here https://github.com/ariya/phantomjs/issues/12685
-				page.evaluate(function (zoom) {
-					document.getElementsByTagName('body')[0].style.zoom = zoom;
-				}, page.zoomFactor);
-
-				page.paperSize = { width: clipwidth * dpiCorrection, height: clipheight * dpiCorrection };
+				page.viewportSize = { width: clipwidth, height: clipheight};
+				// make the paper a bit larger than the viewport
+				page.paperSize = { width: clipwidth + 2 , height: clipheight + 2 };
 			}
 		};
 
 		exit = function (result) {
 			if (serverMode) {
-				// Calling page.close(), may stop the increasing heap allocation
+				//Calling page.close(), may stop the increasing heap allocation
 				page.close();
 			}
 			exitCallback(result);
@@ -251,67 +195,57 @@
 			if (outType === 'pdf' || output !== undefined || !serverMode) {
 				if (output === undefined) {
 					// in case of pdf files
-					output = 'chart.' + outType;
+					output = config.tmpDir + '/chart.' + outType;
 				}
-
-				if (config.tmpDir) {
-					// assume only output is a filename, not a path.
-					page.render(config.tmpDir + '/' + output);
-				} else {
-					page.render(output);
-				}
-
+				page.render(output);
 				exit(output);
 			} else {
 				base64 = page.renderBase64(outType);
 				exit(base64);
 			}
 		};
-
-		function decrementImgCounter() {
-			counter -= 1;
-			if (counter < 1) {
-				imagesLoaded = true;
-			}
-		}
-
-		function loadImages(imgUrls) {
-			var i, img;
-			counter = imgUrls.length;
-			for (i = 0; i < imgUrls.length; i += 1) {
-				img = new Image();
-				/* onload decrements the counter, also when error (perhaps 404), don't wait for this image to be loaded */
-				img.onload = img.onerror = decrementImgCounter;
-				/* force loading of images by setting the src attr.*/
-				img.src = imgUrls[i];
-			}
-		}
-
+        
+        function decrementImgCounter() {
+            counter -= 1;
+            if (counter < 1) {
+                imagesLoaded = true;
+            }
+        }
+        
+        function loadImages(imgUrls) {
+            var i, img;
+            counter = imgUrls.length;
+            for (i = 0; i < imgUrls.length; i += 1) {                    
+                img = new Image();                    
+                /* onload decrements the counter, also when error (perhaps 404), don't wait for this image to be loaded */
+                img.onload = img.onerror = decrementImgCounter;                    
+                /* force loading of images by setting the src attr.*/                    
+                img.src = imgUrls[i];
+            }
+        }
+        
 		renderSVG = function (svg) {
 			var svgFile;
 			// From this point we have 'loaded' or 'created' a SVG
-
-			// Do we have to load images?
-			if (svg.imgUrls.length > 0) {
-				loadImages(svg.imgUrls);
-			} else {
-				// no images present, no loading, no waiting
-				imagesLoaded = true;
-			}
-
+            
+            // Do we have to load images?
+            if (svg.imgUrls.length > 0) {
+                loadImages(svg.imgUrls);
+            } else  {
+                 // no images present, no loading, no waiting
+                imagesLoaded = true;
+            }
+            
 			try {
 				if (outType.toLowerCase() === 'svg') {
 					// output svg
-					svg = svg.html.replace(/<svg (?!xmlns:xlink)/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ').replace(/ href=/g, ' xlink:href=').replace(/<\/svg>.*?$/, '</svg>');
+					svg = svg.html.replace(/<svg /, '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ').replace(/ href=/g, ' xlink:href=').replace(/<\/svg>.*?$/, '</svg>');
 					// add xml doc type
 					svg = SVG_DOCTYPE + svg;
 
 					if (output !== undefined) {
 						// write the file
-						if (config.tmpDir) {
-							output = config.tmpDir + '/' + output;
-						}
-						svgFile = fs.open(output, 'w');
+						svgFile = fs.open(output, "w");
 						svgFile.write(svg);
 						svgFile.close();
 						exit(output);
@@ -348,28 +282,15 @@
 		};
 
 		loadChart = function (input, outputType) {
-			var nodeIter, nodes, elem, opacity, svgElem, imgs, imgUrls, imgIndex, foreignObjectElem, bodyElem;
+			var nodeIter, nodes, elem, opacity, svgElem, imgs, imgUrls, imgIndex;
 
 			document.body.style.margin = '0px';
 			document.body.innerHTML = input;
 
-			// Wrap contents of foreignObject in a body tag if the body tag has been removed. Not sure why this happens,
-			// but when assigning to innerHTML, the body tag seems to be stripped off.
-			foreignObjectElem = document.getElementsByTagName('foreignObject')[0];
-			if (foreignObjectElem && !foreignObjectElem.getElementsByTagName('body').length) {
-				bodyElem = document.createElement('body');
-				bodyElem.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-				while (foreignObjectElem.firstChild) {
-					bodyElem.appendChild(foreignObjectElem.firstChild.cloneNode(true));
-					foreignObjectElem.removeChild(foreignObjectElem.firstChild);
-				}
-				foreignObjectElem.appendChild(bodyElem);
-			}
-
 			if (outputType === 'jpeg') {
 				document.body.style.backgroundColor = 'white';
 			}
-
+            
 			nodes = document.querySelectorAll('*[stroke-opacity]');
 
 			for (nodeIter = 0; nodeIter < nodes.length; nodeIter += 1) {
@@ -380,37 +301,33 @@
 			}
 
 			svgElem = document.getElementsByTagName('svg')[0];
-
-			imgs = document.getElementsByTagName('image');
-			imgUrls = [];
-
-			for (imgIndex = 0; imgIndex < imgs.length; imgIndex = imgIndex + 1) {
-				imgUrls.push(imgs[imgIndex].href.baseVal);
-			}
-
+            
+            imgs = document.getElementsByTagName('image');
+            imgUrls = [];
+            
+            for (imgIndex = 0; imgIndex < imgs.length; imgIndex = imgIndex + 1) {
+                imgUrls.push(imgs[imgIndex].href.baseVal);
+            }           
+			
 			return {
-				html: document.body.innerHTML,
-				width: svgElem.getAttribute('width'),
-				height: svgElem.getAttribute('height'),
-				imgUrls: imgUrls
+			    html: document.body.innerHTML,
+			    width: svgElem.getAttribute("width"),
+			    height: svgElem.getAttribute("height"),
+                imgUrls: imgUrls
 			};
 		};
 
-		createChart = function (constr, input, globalOptionsArg, dataOptionsArg, customCodeArg, outputType, callback) {
+		createChart = function (constr, input, globalOptionsArg, dataOptionsArg, customCodeArg, outputType, callback, messages) {
 
-			var container, chart, nodes, nodeIter, elem, opacity, imgIndex, imgs, imgUrls;
+			var $container, chart, nodes, nodeIter, elem, opacity, imgIndex, imgs, imgUrls;
 
-			// dynamic script insertion
-			function loadScript(varName, code) {
-
-				var elem = document.createElement('script'),
-					body = 'var ' + varName + ' = ' + code;
-				elem.type = 'text/javascript';
-				elem.appendChild(document.createTextNode(body));
-				document.getElementsByTagName('head')[0].appendChild(elem);
-
-				if (window[varName] !== undefined) {
-					console.log('Highcharts.' + varName + '.parsed');
+            // dynamic script insertion
+			function loadScript(varStr, codeStr) {
+				var $script = $('<script>').attr('type', 'text/javascript');
+				$script.html('var ' + varStr + ' = ' + codeStr);
+				document.getElementsByTagName("head")[0].appendChild($script[0]);
+				if (window[varStr] !== undefined) {
+					console.log('Highcharts.' + varStr + '.parsed');
 				}
 			}
 
@@ -443,19 +360,18 @@
 				loadScript('customCode', customCodeArg);
 			}
 
-			document.body.style.margin = '0px';
+			$(document.body).css('margin', '0px');
 
 			if (outputType === 'jpeg') {
-				document.body.style.backgroundColor = 'white';
+				$(document.body).css('backgroundColor', 'white');
 			}
 
-			container = document.createElement('div');
-			container.id = 'container';
-			document.body.appendChild(container);
+			$container = $('<div>').appendTo(document.body);
+			$container.attr('id', 'container');
 
 			// disable animations
 			Highcharts.SVGRenderer.prototype.Element.prototype.animate = Highcharts.SVGRenderer.prototype.Element.prototype.attr;
-			Highcharts.setOptions({
+			Highcharts.setOptions({ 
 				plotOptions: {
 					series: {
 						animation: false
@@ -467,7 +383,7 @@
 				options.chart = {};
 			}
 
-			options.chart.renderTo = container;
+			options.chart.renderTo = $container[0];
 
 			// check if witdh is set. Order of precedence:
 			// args.width, options.chart.width and 600px
@@ -504,7 +420,7 @@
 
 				}, options, dataOptions);
 			} else {
-				chart = new Highcharts[constr](options, cb);
+				chart = new Highcharts[constr](options, cb);				
 			}
 
 			/* remove stroke-opacity paths, used by mouse-trackers, they turn up as
@@ -518,78 +434,66 @@
 				elem.removeAttribute('stroke-opacity');
 				elem.setAttribute('opacity', opacity);
 			}
-
-			imgs = document.getElementsByTagName('image');
-			imgUrls = [];
-
-			for (imgIndex = 0; imgIndex < imgs.length; imgIndex = imgIndex + 1) {
-				imgUrls.push(imgs[imgIndex].href.baseVal);
-			}
-
-			return {
-				html: document.getElementsByClassName('highcharts-container')[0].innerHTML,
+            
+            imgs = document.getElementsByTagName('image');
+            imgUrls = [];
+            
+            for (imgIndex = 0; imgIndex < imgs.length; imgIndex = imgIndex + 1) {
+                imgUrls.push(imgs[imgIndex].href.baseVal);
+            }
+            
+			return {				
+				html: $('div.highcharts-container')[0].innerHTML,
 				width: chart.chartWidth,
 				height: chart.chartHeight,
-				imgUrls: imgUrls
+                imgUrls: imgUrls
 			};
 		};
 
 		if (params.length < 1) {
-			exit('Error: Insufficient parameters');
+			exit("Error: Insufficient parameters");
 		} else {
 			input = params.infile;
 			output = params.outfile;
 
 			if (output !== undefined) {
-				outType = pick(output.split('.').pop(), 'png');
+				outType = pick(output.split('.').pop(),'png');
 			} else {
-				outType = pick(params.type, 'png');
+				outType = pick(params.type,'png');
 			}
 
 			constr = pick(params.constr, 'Chart');
 			callback = params.callback;
-			// width = params.width;
+			width = params.width;
 
 			if (input === undefined || input.length === 0) {
 				exit('Error: Insuficient or wrong parameters for rendering');
 			}
 
-			page.open('about:blank', function () {
+			page.open('about:blank', function (status) {
 				var svg,
 					globalOptions = params.globaloptions,
 					dataOptions = params.dataoptions,
 					customCode = 'function customCode(options) {\n' + params.customcode + '}\n',
-					jsFile,
-					jsFiles;
+					jsfile;
 
 				/* Decide if we have to generate a svg first before rendering */
-				if (input.substring(0, 4).toLowerCase() === '<svg' || input.substring(0, 5).toLowerCase() === '<?xml' ||
-					input.substring(0, 9).toLowerCase() === '<!doctype') {
-					// render page directly from svg file
+				if (input.substring(0, 4).toLowerCase() === "<svg" || input.substring(0, 5).toLowerCase() === "<?xml"
+					|| input.substring(0, 9).toLowerCase() === "<!doctype") {
+					//render page directly from svg file
 					svg = page.evaluate(loadChart, input, outType);
 					page.viewportSize = { width: svg.width, height: svg.height };
 					renderSVG(svg);
 				} else {
-					/**
-					 * We have a js file, let's render serverside from Highcharts options and grab the svg from it
-					 */
-
-					// load our javascript dependencies based on the constructor
-					if (constr === 'Map') {
-						jsFiles = config.files.highmaps;
-					} else if (constr === 'StockChart') {
-						jsFiles = config.files.highstock;
-					} else {
-						jsFiles = config.files.highcharts;
-					}
+					// We have a js file, let highcharts create the chart first and grab the svg
 
 					// load necessary libraries
-					for (jsFile in jsFiles) {
-						if (jsFiles.hasOwnProperty(jsFile)) {
-							page.injectJs(jsFiles[jsFile]);
+					for (jsfile in config.files) {
+						if (config.files.hasOwnProperty(jsfile)) {
+							page.injectJs(config.files[jsfile]);	
 						}
 					}
-
+                    
 					// load chart in page and return svg height and width
 					svg = page.evaluate(createChart, constr, input, globalOptions, dataOptions, customCode, outType, callback, messages);
 
@@ -609,22 +513,11 @@
 	startServer = function (host, port) {
 		var server = require('webserver').create();
 
-		function onError(msg, e) {
-			msg = 'Failed rendering: \n';
-			if (e) {
-				msg += e;
-			}
-			response.statusCode = 500;
-			response.setHeader('Content-Type', 'text/plain');
-			response.setHeader('Content-Length', msg.length);
-			response.write(msg);
-			response.close();
-		}
-
-		server.listen(host ? host + ':' + port : parseInt(port, 10),
+		server.listen(host + ':' + port,
 			function (request, response) {
 				var jsonStr = request.postRaw || request.post,
-					params;
+					params,
+					msg;
 				try {
 					params = JSON.parse(jsonStr);
 					if (params.status) {
@@ -637,37 +530,44 @@
 							response.statusCode = 200;
 							response.write(result);
 							response.close();
-						}, onError);
+						});
 					}
 				} catch (e) {
-					onError('Failed rendering chart');
+					msg = "Failed rendering: \n" + e;
+					response.statusCode = 500;
+					response.setHeader('Content-Type', 'text/plain');
+					response.setHeader('Content-Length', msg.length);
+					response.write(msg);
+					response.close();
 				}
 			}); // end server.listen
 
 		// switch to serverMode
 		serverMode = true;
 
-		console.log('OK, PhantomJS is ready.');
+		console.log("OK, PhantomJS is ready.");
 	};
 
 	args = mapCLArguments();
 
-	// set tmpDir, for outputting temporary files.
-	if (args.tmpdir !== undefined) {
-
+	// set tmpDir, for output temporary files.
+	if (args.tmpdir === undefined) {
+		config.tmpDir = fs.workingDirectory + '/tmp';
+	} else {
 		config.tmpDir = args.tmpdir;
+	}
 
-		// Make sure tmpDir exist and is writable
-		if (!fs.exists(config.tmpDir)) {
-			try{
-				fs.makeDirectory(config.tmpDir);
-			} catch (e) {
-				console.log('ERROR: Cannot create temp directory for ' + config.tmpDir);
-			}
+	// exists tmpDir and is it writable?
+	if (!fs.exists(config.tmpDir)) {
+		try{
+			fs.makeDirectory(config.tmpDir);
+		} catch (e) {
+			console.log('ERROR: Cannot create temp directory for ' + config.tmpDir);
 		}
 	}
 
-	if (args.port !== undefined) {
+
+	if (args.host !== undefined && args.port !== undefined) {
 		startServer(args.host, args.port);
 	} else {
 		// presume commandline usage
