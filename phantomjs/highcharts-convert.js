@@ -33,8 +33,9 @@
 				HIGHCHARTS_HEATMAP: 'heatmap.js',
 				HIGHCHARTS_3D: 'highcharts-3d.js',
 				HIGHCHARTS_NODATA: 'no-data-to-display.js',
-				/*HIGHCHARTS_MAP: 'map.js',*/
-				HIGHCHARTS_SOLID_GAUGE: 'solid-gauge.js'
+				HIGHCHARTS_MAP: 'map.js',
+				HIGHCHARTS_SOLID_GAUGE: 'solid-gauge.js',
+				BROKEN_AXIS: 'broken-axis.js'
 			},
 			TIMEOUT: 5000 /* 5 seconds timout for loading images */
 		},
@@ -156,7 +157,13 @@
 
 			/* params.width has a higher precedence over scaling, to not break backover compatibility */
 			page.zoomFactor = params.scale && params.width == undefined ? zoom * params.scale : zoom;
-
+			page.evaluate(function (zoom) {
+				var foreignObjectElem = document.getElementsByTagName('foreignObject')[0],
+					bodyElem = foreignObjectElem && foreignObjectElem.getElementsByTagName('body')[0];
+				if (bodyElem) {
+					bodyElem.setAttribute('style', '-webkit-transform: scale(' + zoom + '); -webkit-transform-origin: 0 0 !important');
+				}
+			}, page.zoomFactor);
 			clipwidth = svg.width * page.zoomFactor;
 			clipheight = svg.height * page.zoomFactor;
 
@@ -168,16 +175,16 @@
 				width: clipwidth,
 				height: clipheight
 			};
+			// redefine the viewport
+			page.viewportSize = { width: clipwidth, height: clipheight };
 
-			/* for pdf we need a bit more paperspace in some cases for example (w:600,h:400), I don't know why.*/
 			if (outType === 'pdf') {
-				// changed to a multiplication with 1.333 to correct systems dpi setting
-				clipwidth = clipwidth * dpiCorrection;
-				clipheight = clipheight * dpiCorrection;
-				// redefine the viewport
-				page.viewportSize = { width: clipwidth, height: clipheight};
-				// make the paper a bit larger than the viewport
-				page.paperSize = { width: clipwidth + 2 , height: clipheight + 2 };
+				// simulate zooming to get the right zoomFactor. Using page.zoomFactor doesn't work anymore, see issue here https://github.com/ariya/phantomjs/issues/12685
+				page.evaluate(function(zoom) {
+					document.getElementsByTagName('body')[0].style.zoom = zoom;
+				}, page.zoomFactor);
+
+				page.paperSize = { width: clipwidth, height: clipheight};
 			}
 		};
 
@@ -340,8 +347,33 @@
 				}
 			}
 
+			var funcs = {};
 			if (input !== 'undefined') {
-				loadScript('options', input);
+				try {
+					input = JSON.parse(input);
+					// check for string functions in request and create actual functions to be added
+					if (input['functions']) {
+						for (var path in input['functions']) {
+							funcs[path] = Function(input['functions'][path]);
+						}
+					}
+					loadScript('options', JSON.stringify(input));
+					// add actual functions to appropriate locations in chart options
+					for (var path in funcs) {
+						var position = options,
+						    pathArray = path.split('.');
+						for (var i in pathArray) {
+							if (i == (pathArray.length - 1)) {
+								position[pathArray[i]] = funcs[path];
+							} else if (!position.hasOwnProperty(pathArray[i]) || !position[pathArray[i]]) {
+								position[pathArray[i]] = {};
+							}
+							position = position[pathArray[i]];
+						}
+					}
+				} catch(e) {
+					loadScript('options', input);
+				}
 			}
 
 			if (callback !== 'undefined') {
