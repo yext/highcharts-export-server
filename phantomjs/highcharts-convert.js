@@ -375,7 +375,9 @@
 					loadScript('options', input);
 				}
 			}
-
+			if (options.lang) {
+				Highcharts.setOptions({lang: options.lang});
+			}
 			if (callback !== 'undefined') {
 				loadScript('cb', callback);
 			}
